@@ -1,10 +1,10 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TokenType {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Token {
     //
     Illegal,
     EOF,
-    Ident,
-    Int,
+    Ident(String),
+    Int(String),
     // Operators
     Assign,
     Plus,
@@ -35,31 +35,59 @@ pub enum TokenType {
     False,
 }
 
-impl TokenType {}
-
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub typ: TokenType,
-    pub literal: String,
-}
-
 impl Token {
-    pub fn new(typ: TokenType, literal: &str) -> Self {
-        Token {
-            typ,
-            literal: literal.to_owned(),
+    pub fn make_int(int: &str) -> Token {
+        Token::Int(int.to_owned())
+    }
+    pub fn make_ident(ident: &str) -> Token {
+        Token::Ident(ident.to_string())
+    }
+    pub fn lookup_ident(ident: &str) -> Token {
+        match ident {
+            "let" => Token::Let,
+            "fn" => Token::Function,
+            "if" => Token::If,
+            "else" => Token::Else,
+            "return" => Token::Return,
+            "true" => Token::True,
+            "false" => Token::False,
+            _ => Token::Ident(ident.to_string()),
         }
     }
-    pub fn new_illegal() -> Self {
-        Token {
-            typ: TokenType::Illegal,
-            literal: String::new(),
-        }
-    }
-    pub fn from_char(typ: TokenType, literal: char) -> Self {
-        Token {
-            typ,
-            literal: literal.to_string(),
+    pub fn literal(&self) -> &str {
+        match self {
+            Token::Illegal => "",
+            Token::EOF => "",
+            Token::Ident(literal) => &literal,
+            Token::Int(literal) => &literal,
+            // Operators
+            Token::Assign => "=",
+            Token::Plus => "+",
+            Token::Minus => "-",
+            Token::Bang => "!",
+            Token::Asterisk => "*",
+            Token::Slash => "/",
+
+            Token::Eq => "==",
+            Token::NotEq => "!=",
+
+            Token::Lt => "<",
+            Token::Gt => ">",
+            // Delimiters
+            Token::Comma => ",",
+            Token::Semicolon => ";",
+            Token::LParen => "(",
+            Token::RParen => ")",
+            Token::LBrace => "{",
+            Token::RBrace => "}",
+            // Keywords
+            Token::Function => "fn",
+            Token::Let => "let",
+            Token::If => "if",
+            Token::Else => "else",
+            Token::Return => "return",
+            Token::True => "true",
+            Token::False => "false",
         }
     }
 }

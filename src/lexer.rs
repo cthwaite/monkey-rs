@@ -1,17 +1,17 @@
-use crate::token::{Token, TokenType};
+use crate::token::Token;
 use std::iter::Peekable;
 use std::str::Chars;
 
-pub fn lookup_ident(ident: &str) -> TokenType {
+pub fn lookup_ident(ident: &str) -> Token {
     match ident {
-        "let" => TokenType::Let,
-        "fn" => TokenType::Function,
-        "if" => TokenType::If,
-        "else" => TokenType::Else,
-        "return" => TokenType::Return,
-        "true" => TokenType::True,
-        "false" => TokenType::False,
-        _ => TokenType::Ident,
+        "let" => Token::Let,
+        "fn" => Token::Function,
+        "if" => Token::If,
+        "else" => Token::Else,
+        "return" => Token::Return,
+        "true" => Token::True,
+        "false" => Token::False,
+        _ => Token::Ident(ident.to_string()),
     }
 }
 
@@ -97,48 +97,46 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let tok = match self.ch {
-            Some(ch @ '=') => {
+            Some('=') => {
                 if let Some('=') = self.peek_char() {
                     self.read_char();
-                    Token::new(TokenType::Eq, "==")
+                    Token::Eq
                 } else {
-                    Token::from_char(TokenType::Assign, ch)
+                    Token::Assign
                 }
             }
-            Some(ch @ '+') => Token::from_char(TokenType::Plus, ch),
-            Some(ch @ '-') => Token::from_char(TokenType::Minus, ch),
-            Some(ch @ '!') => {
+            Some('+') => Token::Plus,
+            Some('-') => Token::Minus,
+            Some('!') => {
                 if let Some('=') = self.peek_char() {
                     self.read_char();
-                    Token::new(TokenType::NotEq, "!=")
+                    Token::NotEq
                 } else {
-                    Token::from_char(TokenType::Bang, ch)
+                    Token::Bang
                 }
             }
-            Some(ch @ '*') => Token::from_char(TokenType::Asterisk, ch),
-            Some(ch @ '/') => Token::from_char(TokenType::Slash, ch),
+            Some('*') => Token::Asterisk,
+            Some('/') => Token::Slash,
 
-            Some(ch @ '<') => Token::from_char(TokenType::Lt, ch),
-            Some(ch @ '>') => Token::from_char(TokenType::Gt, ch),
+            Some('<') => Token::Lt,
+            Some('>') => Token::Gt,
 
-            Some(ch @ '(') => Token::from_char(TokenType::LParen, ch),
-            Some(ch @ ')') => Token::from_char(TokenType::RParen, ch),
-            Some(ch @ '{') => Token::from_char(TokenType::LBrace, ch),
-            Some(ch @ '}') => Token::from_char(TokenType::RBrace, ch),
-            Some(ch @ ',') => Token::from_char(TokenType::Comma, ch),
-            Some(ch @ ';') => Token::from_char(TokenType::Semicolon, ch),
+            Some('(') => Token::LParen,
+            Some(')') => Token::RParen,
+            Some('{') => Token::LBrace,
+            Some('}') => Token::RBrace,
+            Some(',') => Token::Comma,
+            Some(';') => Token::Semicolon,
             Some(ch) => {
                 if ch.is_alphabetic() {
-                    let literal = self.read_identifier();
-                    let typ = lookup_ident(literal);
-                    return Token::new(typ, literal);
+                    return Token::lookup_ident(self.read_identifier());
                 } else if ch.is_digit(10) {
-                    return Token::new(TokenType::Int, self.read_number());
+                    return Token::make_int(self.read_number());
                 } else {
-                    return Token::new_illegal();
+                    return Token::Illegal;
                 }
             }
-            None => Token::new(TokenType::EOF, ""),
+            None => Token::EOF,
         };
         self.read_char();
         tok
@@ -149,17 +147,21 @@ impl<'a> Lexer<'a> {
 mod test {
     use super::*;
 
-    fn check_output_tokens(input: &str, expected_output: Vec<(TokenType, &str)>) {
+    fn check_output_tokens(input: &str, expected_output: Vec<Token>) {
         let mut lexer = Lexer::new(input);
 
-        for (idx, (tok_typ, literal)) in expected_output.into_iter().enumerate() {
-            let tok = lexer.next_token();
+        for (idx, expected_token) in expected_output.into_iter().enumerate() {
+            let lexed_token = lexer.next_token();
             assert_eq!(
-                tok.typ, tok_typ,
+                expected_token,
+                lexed_token,
                 "[{}] Expected ({:?} {:?}) => Got ({:?} {:?})",
-                idx, tok.typ, tok.literal, tok_typ, literal
+                idx,
+                expected_token,
+                expected_token.literal(),
+                lexed_token,
+                lexed_token.literal()
             );
-            assert_eq!(tok.literal, literal);
         }
     }
 
@@ -171,15 +173,15 @@ mod test {
         10 != 9;
         "#;
         let expected_output = vec![
-            (TokenType::Int, "10"),
-            (TokenType::Eq, "=="),
-            (TokenType::Int, "10"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::Int, "10"),
-            (TokenType::NotEq, "!="),
-            (TokenType::Int, "9"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::EOF, ""),
+            Token::make_int("10"),
+            Token::Eq,
+            Token::make_int("10"),
+            Token::Semicolon,
+            Token::make_int("10"),
+            Token::NotEq,
+            Token::make_int("9"),
+            Token::Semicolon,
+            Token::EOF,
         ];
         check_output_tokens(input, expected_output);
     }
@@ -196,44 +198,45 @@ mod test {
         let result = add(five, ten);
         "#;
         let expected_output = vec![
-            (TokenType::Let, "let"),
-            (TokenType::Ident, "five"),
-            (TokenType::Assign, "="),
-            (TokenType::Int, "5"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::Let, "let"),
-            (TokenType::Ident, "ten"),
-            (TokenType::Assign, "="),
-            (TokenType::Int, "10"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::Let, "let"),
-            (TokenType::Ident, "add"),
-            (TokenType::Assign, "="),
-            (TokenType::Function, "fn"),
-            (TokenType::LParen, "("),
-            (TokenType::Ident, "x"),
-            (TokenType::Comma, ","),
-            (TokenType::Ident, "y"),
-            (TokenType::RParen, ")"),
-            (TokenType::LBrace, "{"),
-            (TokenType::Ident, "x"),
-            (TokenType::Plus, "+"),
-            (TokenType::Ident, "y"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::RBrace, "}"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::Let, "let"),
-            (TokenType::Ident, "result"),
-            (TokenType::Assign, "="),
-            (TokenType::Ident, "add"),
-            (TokenType::LParen, "("),
-            (TokenType::Ident, "five"),
-            (TokenType::Comma, ","),
-            (TokenType::Ident, "ten"),
-            (TokenType::RParen, ")"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::EOF, ""),
+            Token::Let,
+            Token::make_ident("five"),
+            Token::Assign,
+            Token::make_int("5"),
+            Token::Semicolon,
+            Token::Let,
+            Token::make_ident("ten"),
+            Token::Assign,
+            Token::make_int("10"),
+            Token::Semicolon,
+            Token::Let,
+            Token::make_ident("add"),
+            Token::Assign,
+            Token::Function,
+            Token::LParen,
+            Token::make_ident("x"),
+            Token::Comma,
+            Token::make_ident("y"),
+            Token::RParen,
+            Token::LBrace,
+            Token::make_ident("x"),
+            Token::Plus,
+            Token::make_ident("y"),
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Semicolon,
+            Token::Let,
+            Token::make_ident("result"),
+            Token::Assign,
+            Token::make_ident("add"),
+            Token::LParen,
+            Token::make_ident("five"),
+            Token::Comma,
+            Token::make_ident("ten"),
+            Token::RParen,
+            Token::Semicolon,
+            Token::EOF,
         ];
+        check_output_tokens(input, expected_output);
     }
 
     #[test]
@@ -249,49 +252,38 @@ mod test {
             return false;
         }
         "#;
-        let tests = vec![
-            (TokenType::Bang, "!"),
-            (TokenType::Minus, "-"),
-            (TokenType::Slash, "/"),
-            (TokenType::Asterisk, "*"),
-            (TokenType::Int, "5"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::Int, "5"),
-            (TokenType::Lt, "<"),
-            (TokenType::Int, "10"),
-            (TokenType::Gt, ">"),
-            (TokenType::Int, "5"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::If, "if"),
-            (TokenType::LParen, "("),
-            (TokenType::Int, "5"),
-            (TokenType::Lt, "<"),
-            (TokenType::Int, "10"),
-            (TokenType::RParen, ")"),
-            (TokenType::LBrace, "{"),
-            (TokenType::Return, "return"),
-            (TokenType::True, "true"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::RBrace, "}"),
-            (TokenType::Else, "else"),
-            (TokenType::LBrace, "{"),
-            (TokenType::Return, "return"),
-            (TokenType::False, "false"),
-            (TokenType::Semicolon, ";"),
-            (TokenType::RBrace, "}"),
-            (TokenType::EOF, ""),
+        let expected_output = vec![
+            Token::Bang,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::make_int("5"),
+            Token::Semicolon,
+            Token::make_int("5"),
+            Token::Lt,
+            Token::make_int("10"),
+            Token::Gt,
+            Token::make_int("5"),
+            Token::Semicolon,
+            Token::If,
+            Token::LParen,
+            Token::make_int("5"),
+            Token::Lt,
+            Token::make_int("10"),
+            Token::RParen,
+            Token::LBrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Else,
+            Token::LBrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::EOF,
         ];
-
-        let mut lexer = Lexer::new(input);
-
-        for (idx, (tok_typ, literal)) in tests.into_iter().enumerate() {
-            let tok = lexer.next_token();
-            assert_eq!(
-                tok.typ, tok_typ,
-                "[{}] Comparing {:?} {:?}",
-                idx, tok.typ, tok.literal
-            );
-            assert_eq!(tok.literal, literal);
-        }
+        check_output_tokens(input, expected_output);
     }
 }

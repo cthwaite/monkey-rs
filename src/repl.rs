@@ -1,5 +1,5 @@
 use crate::lexer::Lexer;
-use crate::token::TokenType;
+use crate::token::Token;
 use std::io::{self, BufRead, BufReader, Read, Write};
 
 const PROMPT: &'static str = ">> ";
@@ -19,7 +19,7 @@ pub fn start<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> io::Result<()
         let mut tok = lexer.next_token();
         loop {
             writeln!(writer, "{:?}", tok)?;
-            if tok.typ == TokenType::EOF {
+            if tok == Token::EOF {
                 break;
             }
             tok = lexer.next_token();

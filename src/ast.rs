@@ -38,7 +38,7 @@ pub struct Identifier {
 
 impl Identifier {
     pub fn new(token: Token) -> Self {
-        let value = token.literal.clone();
+        let value = token.literal().to_string();
         Identifier {
             value,
             token: token,
@@ -52,7 +52,7 @@ impl Statement for Identifier {
 
 impl Node for Identifier {
     fn token_literal(&self) -> String {
-        self.token.literal.clone()
+        self.token.literal().to_string()
     }
 }
 
@@ -68,6 +68,6 @@ impl Statement for LetStatement {
 
 impl Node for LetStatement {
     fn token_literal(&self) -> String {
-        self.token.literal.clone()
+        self.token.literal().to_string()
     }
 }

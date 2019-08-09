@@ -23,7 +23,7 @@ impl Program {
 
 impl Node for Program {
     fn token_literal(&self) -> String {
-        if self.statements.len() > 0 {
+        if self.statements.is_empty() {
             self.statements[0].token_literal()
         } else {
             String::new()
@@ -39,10 +39,7 @@ pub struct Identifier {
 impl Identifier {
     pub fn new(token: Token) -> Self {
         let value = token.literal().to_string();
-        Identifier {
-            value,
-            token: token,
-        }
+        Identifier { value, token }
     }
 }
 

@@ -2,7 +2,7 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use std::io::{self, BufRead, BufReader, Read, Write};
 
-const PROMPT: &'static str = ">> ";
+const PROMPT: &str = ">> ";
 
 pub fn start<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> io::Result<()> {
     let mut buffer = String::new();

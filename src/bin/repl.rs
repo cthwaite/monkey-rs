@@ -1,7 +1,7 @@
-use interp::repl::start;
-use std::io::BufRead;
+use interp::repl;
 use std::io::{stdin, stdout};
 
 fn main() -> Result<(), std::io::Error> {
-    start(&mut stdin(), &mut stdout())
+    println!("Welcome to the Monkey programming language");
+    repl::start(&mut stdin(), &mut stdout())
 }

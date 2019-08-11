@@ -18,12 +18,15 @@ impl Display for Identifier {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Identifier(Identifier),
+    IntegerLiteral(i64),
     Nothing,
 }
+
 impl Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Expression::Identifier(name) => write!(f, "{}", name),
+            Expression::IntegerLiteral(value) => write!(f, "{}", value),
             _ => Ok(()),
         }
     }
@@ -31,30 +34,25 @@ impl Display for Expression {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    LetStatement {
+    Let {
         token: Token,
         name: Identifier,
         value: Expression,
     },
-    ReturnStatement {
+    Return {
+        token: Token,
+        expr: Expression,
+    },
+    Expression {
         token: Token,
         expr: Expression,
     },
 }
 
-impl Statement {
-    pub fn token_literal(&self) -> &str {
-        match self {
-            Statement::LetStatement { token, .. } => token.literal(),
-            Statement::ReturnStatement { token, .. } => token.literal(),
-        }
-    }
-}
-
 impl Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Statement::LetStatement { token, name, value } => {
+            Statement::Let { token, name, value } => {
                 write!(f, "{} {}", token.literal(), name)?;
                 match value {
                     Expression::Nothing => (),
@@ -62,7 +60,7 @@ impl Display for Statement {
                 }
                 write!(f, ";")
             }
-            Statement::ReturnStatement { token, expr } => {
+            Statement::Return { token, expr } => {
                 write!(f, "{}", token.literal())?;
                 match expr {
                     Expression::Nothing => (),
@@ -70,23 +68,24 @@ impl Display for Statement {
                 }
                 write!(f, ";")
             }
+            Statement::Expression { expr, .. } => write!(f, "{}", expr),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
 
 impl Program {
-    pub fn new() -> Self {
-        Program { statements: vec![] }
+    /// Get the number of statements in the program.
+    pub fn len(&self) -> usize {
+        self.statements.len()
     }
-    pub fn token_literal(&self) -> Option<&str> {
-        self.statements
-            .first()
-            .and_then(|stmt| Some(stmt.token_literal()))
+    /// Check if the program is empty.
+    pub fn is_empty(&self) -> bool {
+        self.statements.is_empty()
     }
 }
 
@@ -105,7 +104,7 @@ mod test {
 
     #[test]
     fn test_display_let_statement() {
-        let stmt = Statement::LetStatement {
+        let stmt = Statement::Let {
             token: Token::Let,
             name: Identifier::new("x"),
             value: Expression::Identifier(Identifier::new("y")),
@@ -115,7 +114,7 @@ mod test {
 
     #[test]
     fn test_display_return_statement() {
-        let stmt = Statement::ReturnStatement {
+        let stmt = Statement::Return {
             token: Token::Return,
             expr: Expression::Nothing,
         };
@@ -126,12 +125,12 @@ mod test {
     fn test_display_program() {
         let prog = Program {
             statements: vec![
-                Statement::LetStatement {
+                Statement::Let {
                     token: Token::Let,
                     name: Identifier::new("x"),
                     value: Expression::Identifier(Identifier::new("y")),
                 },
-                Statement::ReturnStatement {
+                Statement::Return {
                     token: Token::Return,
                     expr: Expression::Nothing,
                 },

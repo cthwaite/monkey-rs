@@ -78,11 +78,19 @@ impl<'a> Parser<'a> {
     }
 
     pub fn current_token_is(&self, tok: &Token) -> bool {
-        *tok == self.cur_token
+        match (&tok, &self.cur_token) {
+            (Token::Ident(_), Token::Ident(_)) => true,
+            (Token::Int(_), Token::Int(_)) => true,
+            _ => tok == &self.cur_token,
+        }
     }
 
     pub fn peek_token_is(&self, tok: &Token) -> bool {
-        *tok == self.peek_token
+        match (&tok, &self.peek_token) {
+            (Token::Ident(_), Token::Ident(_)) => true,
+            (Token::Int(_), Token::Int(_)) => true,
+            _ => tok == &self.peek_token,
+        }
     }
 
     pub fn expect_peek(&mut self, tok: &Token) -> bool {

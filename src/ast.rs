@@ -107,10 +107,10 @@ mod test {
     fn test_display_let_statement() {
         let stmt = Statement::LetStatement {
             token: Token::Let,
-            name: Identifier("x".to_string()),
-            value: Expression::Nothing,
+            name: Identifier::new("x"),
+            value: Expression::Identifier(Identifier::new("y")),
         };
-        assert_eq!(format!("{}", stmt), "let x;");
+        assert_eq!(format!("{}", stmt), "let x = y;");
     }
 
     #[test]
@@ -128,8 +128,8 @@ mod test {
             statements: vec![
                 Statement::LetStatement {
                     token: Token::Let,
-                    name: Identifier("x".to_string()),
-                    value: Expression::Nothing,
+                    name: Identifier::new("x"),
+                    value: Expression::Identifier(Identifier::new("y")),
                 },
                 Statement::ReturnStatement {
                     token: Token::Return,
@@ -137,6 +137,6 @@ mod test {
                 },
             ],
         };
-        assert_eq!(format!("{}", prog), "let x;\nreturn;\n");
+        assert_eq!(format!("{}", prog), "let x = y;\nreturn;\n");
     }
 }

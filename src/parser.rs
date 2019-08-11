@@ -136,10 +136,15 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_return_statement(&mut self) -> Option<Statement> {
-        Some(Statement::ReturnStatement {
+        let stmt = Some(Statement::ReturnStatement {
             token: self.cur_token.clone(),
             expr: Expression::Dummy,
-        })
+        });
+        self.next_token();
+        while !self.current_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+        stmt
     }
 }
 

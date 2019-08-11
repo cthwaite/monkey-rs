@@ -83,13 +83,19 @@ impl Program {
     pub fn new() -> Self {
         Program { statements: vec![] }
     }
-}
-
-impl Program {
     pub fn token_literal(&self) -> Option<&str> {
         self.statements
             .first()
             .and_then(|stmt| Some(stmt.token_literal()))
+    }
+}
+
+impl Display for Program {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for stmt in &self.statements {
+            writeln!(f, "{}", stmt)?;
+        }
+        Ok(())
     }
 }
 
@@ -114,5 +120,23 @@ mod test {
             expr: Expression::Nothing,
         };
         assert_eq!(format!("{}", stmt), "return;");
+    }
+
+    #[test]
+    fn test_display_program() {
+        let prog = Program {
+            statements: vec![
+                Statement::LetStatement {
+                    token: Token::Let,
+                    name: Identifier("x".to_string()),
+                    value: Expression::Nothing,
+                },
+                Statement::ReturnStatement {
+                    token: Token::Return,
+                    expr: Expression::Nothing,
+                },
+            ],
+        };
+        assert_eq!(format!("{}", prog), "let x;\nreturn;\n");
     }
 }

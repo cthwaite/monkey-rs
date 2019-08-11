@@ -8,11 +8,23 @@ use crate::token::Token;
 pub enum Precedence {
     Lowest,
     Equals,
-    LessGrater,
+    LessGreater,
     Sum,
     Product,
     Prefix,
     Call,
+}
+
+impl Precedence {
+    pub fn for_token(token: &Token) -> Self {
+        match token {
+            Token::Eq | Token::NotEq => Precedence::Equals,
+            Token::Gt | Token::Lt => Precedence::LessGreater,
+            Token::Plus | Token::Minus => Precedence::Sum,
+            Token::Slash | Token::Asterisk => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -161,6 +173,14 @@ impl<'a> Parser<'a> {
         })
     }
 
+    pub fn cur_precedence(&self) -> Precedence {
+        Precedence::for_token(&self.cur_token)
+    }
+
+    pub fn peek_precedence(&self) -> Precedence {
+        Precedence::for_token(&self.peek_token)
+    }
+
     pub fn parse_return_statement(&mut self) -> ParserResult<Statement> {
         let stmt = Statement::Return {
             token: self.cur_token.clone(),
@@ -203,14 +223,46 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_expression(&mut self, _precendence: Precedence) -> ParserResult<Expression> {
-        match &self.cur_token {
-            Token::Ident(name) => Ok(Expression::Identifier(Identifier::new(name))),
-            Token::Int(value_str) => self.parse_int_expression(value_str),
-            Token::Bang => self.parse_prefix_expression(),
-            Token::Minus => self.parse_prefix_expression(),
-            _ => Err(ParserError::UnhandledPrefix(self.cur_token.clone())),
+    pub fn parse_infix_expression(&mut self, left: Expression) -> ParserResult<Expression> {
+        let operator = self.cur_token.clone();
+        let precedence = self.cur_precedence();
+        self.next_token();
+        let right = self.parse_expression(precedence)?;
+        Ok(Expression::Infix {
+            operator,
+            left: Box::new(left),
+            right: Box::new(right),
+        })
+    }
+
+    pub fn parse_expression(&mut self, precedence: Precedence) -> ParserResult<Expression> {
+        let mut left = match &self.cur_token {
+            Token::Ident(name) => Expression::Identifier(Identifier::new(name)),
+            Token::Int(value_str) => self.parse_int_expression(value_str)?,
+            Token::Bang => self.parse_prefix_expression()?,
+            Token::Minus => self.parse_prefix_expression()?,
+            Token::Plus => self.parse_prefix_expression()?,
+            _ => return Err(ParserError::UnhandledPrefix(self.cur_token.clone())),
+        };
+
+        while !self.peek_token_is(&Token::Semicolon) && precedence < self.peek_precedence() {
+            left = match &self.peek_token {
+                Token::Plus
+                | Token::Minus
+                | Token::Asterisk
+                | Token::Slash
+                | Token::Gt
+                | Token::Lt
+                | Token::Eq
+                | Token::NotEq => {
+                    self.next_token();
+                    self.parse_infix_expression(left)?
+                }
+                _ => return Ok(left),
+            };
+            self.next_token();
         }
+        Ok(left)
     }
 }
 
@@ -431,6 +483,52 @@ mod test {
                 Expression::Prefix { operator, right } => {
                     assert_eq!(operator, &expected_op);
                     assert_eq!(**right, Expression::IntegerLiteral(integer_value));
+                }
+
+                _ => assert!(false, "Expected Expression::Prefix, got {:?}", expr),
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_infix_expressions() {
+        let prefix_tests = vec![
+            ("5 + 5;", 5, Token::Plus, 5),
+            ("5 - 5;", 5, Token::Minus, 5),
+            ("5 * 5;", 5, Token::Asterisk, 5),
+            ("5 / 5;", 5, Token::Slash, 5),
+            ("5 > 5;", 5, Token::Gt, 5),
+            ("5 < 5;", 5, Token::Lt, 5),
+            ("5 == 5;", 5, Token::Eq, 5),
+            ("5 != 5;", 5, Token::NotEq, 5),
+        ];
+
+        for (input, left_value, expected_op, right_value) in prefix_tests {
+            let (parser, program) = parser_for_input(input);
+            assert_no_parser_errors(&parser);
+            assert_program_statements_len(&program, 1);
+
+            let expr = match &program.statements[0] {
+                Statement::Expression { expr, .. } => expr,
+                _ => {
+                    assert!(
+                        false,
+                        "Expected Statement::Expression, got {:?}",
+                        program.statements[0]
+                    );
+                    unreachable!();
+                }
+            };
+
+            match expr {
+                Expression::Infix {
+                    left,
+                    operator,
+                    right,
+                } => {
+                    assert_eq!(**left, Expression::IntegerLiteral(left_value));
+                    assert_eq!(operator, &expected_op);
+                    assert_eq!(**right, Expression::IntegerLiteral(right_value));
                 }
 
                 _ => assert!(false, "Expected Expression::Prefix, got {:?}", expr),

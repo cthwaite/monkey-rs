@@ -23,6 +23,11 @@ pub enum Expression {
         operator: Token,
         right: Box<Expression>,
     },
+    Infix {
+        left: Box<Expression>,
+        operator: Token,
+        right: Box<Expression>,
+    },
     Nothing,
 }
 
@@ -32,6 +37,11 @@ impl Display for Expression {
             Expression::Identifier(name) => write!(f, "{}", name),
             Expression::IntegerLiteral(value) => write!(f, "{}", value),
             Expression::Prefix { operator, right } => write!(f, "{}{}", operator.literal(), right),
+            Expression::Infix {
+                left,
+                operator,
+                right,
+            } => write!(f, "({} {} {})", left, operator.literal(), right),
             _ => Ok(()),
         }
     }
@@ -142,5 +152,24 @@ mod test {
             ],
         };
         assert_eq!(format!("{}", prog), "let x = y;\nreturn;\n");
+    }
+
+    #[test]
+    fn test_display_prefix_expression() {
+        let stmt = Expression::Prefix {
+            operator: Token::Minus,
+            right: Box::new(Expression::IntegerLiteral(5)),
+        };
+        assert_eq!(format!("{}", stmt), "-5");
+    }
+
+    #[test]
+    fn test_display_infix_expression() {
+        let stmt = Expression::Infix {
+            left: Box::new(Expression::IntegerLiteral(5)),
+            operator: Token::Plus,
+            right: Box::new(Expression::IntegerLiteral(5)),
+        };
+        assert_eq!(format!("{}", stmt), "(5 + 5)");
     }
 }

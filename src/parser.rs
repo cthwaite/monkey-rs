@@ -163,14 +163,12 @@ impl<'a> Parser<'a> {
 
         let name = self.expect_ident()?;
         self.expect_peek(&Token::Assign)?;
-        while !self.current_token_is(&Token::Semicolon) {
+        self.next_token();
+        let value = self.parse_expression(Precedence::Lowest)?;
+        if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
-        Ok(Statement::Let {
-            token,
-            name,
-            value: Expression::Nothing,
-        })
+        Ok(Statement::Let { token, name, value })
     }
 
     pub fn cur_precedence(&self) -> Precedence {
@@ -329,12 +327,19 @@ mod test {
         let (parser, program) = parser_for_input(input);
         assert_no_parser_errors(&parser);
         assert_program_statements_len(&program, 3);
-        let expected_names = vec!["x", "y", "foobar"];
-        for (expected_identifier, stmt) in expected_names.iter().zip(program.statements.iter()) {
+        let expected_names = vec![
+            ("x", Expression::IntegerLiteral(5)),
+            ("y", Expression::IntegerLiteral(10)),
+            ("foobar", Expression::IntegerLiteral(838383)),
+        ];
+        for ((expected_identifier, expected_value), stmt) in
+            expected_names.iter().zip(program.statements.iter())
+        {
             match stmt {
-                Statement::Let { token, name, .. } => {
+                Statement::Let { token, name, value } => {
                     assert_eq!(token, &Token::Let);
                     assert_eq!(name.0, *expected_identifier);
+                    assert_eq!(value, expected_value);
                 }
                 _ => assert!(false, "Expected Statement::Let, got {:?}", stmt),
             }

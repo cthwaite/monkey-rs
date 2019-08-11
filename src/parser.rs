@@ -83,6 +83,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn from_input(input: &'a str) -> Self {
+        Parser::new(Lexer::new(input))
+    }
+
     pub fn errors(&self) -> &[ParserError] {
         &self.errors
     }
@@ -160,7 +164,6 @@ impl<'a> Parser<'a> {
 
     pub fn parse_let_statement(&mut self) -> ParserResult<Statement> {
         let token = self.cur_token.clone();
-
         let name = self.expect_ident()?;
         self.expect_peek(&Token::Assign)?;
         self.next_token();
@@ -180,8 +183,9 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_return_statement(&mut self) -> ParserResult<Statement> {
+        let token = self.cur_token.clone();
         let stmt = Statement::Return {
-            token: self.cur_token.clone(),
+            token,
             expr: Expression::Nothing,
         };
         self.next_token();
@@ -271,8 +275,7 @@ mod test {
     /// Construct a parser to parser the input, returning the parser and parsed
     /// Program object.
     fn parser_for_input(input: &str) -> (Parser, Program) {
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
+        let mut parser = Parser::from_input(input);
         let program = parser.parse_program();
         assert!(program.is_some(), "parse_program() returned None");
         (parser, program.unwrap())
@@ -346,7 +349,7 @@ mod test {
         }
     }
 
-    // #[test]
+    #[test]
     fn test_invalid_let_statements() {
         let input = r#"
         let x 5;
@@ -355,7 +358,7 @@ mod test {
         "#;
 
         let (parser, _program) = parser_for_input(input);
-        assert_parser_errors_len(&parser, 3);
+        assert_parser_errors_len(&parser, 4);
         let errors = parser.errors();
 
         assert!(
@@ -385,6 +388,18 @@ mod test {
 
         assert!(
             match &errors[2] {
+                ParserError::UnhandledPrefix(saw) => {
+                    assert_eq!(saw, &Token::Assign);
+                    true
+                }
+                _ => false,
+            },
+            "Expected ParserError::UnhandledPrefix, saw {:?}",
+            errors[1]
+        );
+
+        assert!(
+            match &errors[3] {
                 ParserError::ExpectedIdent(saw) => {
                     assert_eq!(saw, &Token::make_int("838383"));
                     true

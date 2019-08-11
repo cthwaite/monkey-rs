@@ -4,9 +4,6 @@ use std::fmt::{self, Display};
 
 use crate::token::Token;
 
-type PrefixParseFn = Fn() -> Expression;
-type InfixParseFn = Fn(Expression) -> Expression;
-
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Precedence {
     Lowest,

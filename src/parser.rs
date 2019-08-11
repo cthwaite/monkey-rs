@@ -20,7 +20,10 @@ pub enum ParserError {
     ExpectedToken { expected: Token, saw: Token },
     ExpectedIdent(Token),
     IntegerParseFailure(String),
+    UnhandledExpression(Token),
 }
+
+type ParserResult<T> = Result<T, ParserError>;
 
 impl Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -37,6 +40,9 @@ impl Display for ParserError {
             ),
             ParserError::IntegerParseFailure(expr) => {
                 write!(f, "Could not parse {} as integer", expr)
+            }
+            ParserError::UnhandledExpression(tok) => {
+                write!(f, "No handler for expression: {:?}", tok)
             }
         }
     }
@@ -65,11 +71,11 @@ impl<'a> Parser<'a> {
         &self.errors
     }
 
-    pub fn peek_error(&mut self, expected: &Token) {
-        self.errors.push(ParserError::ExpectedToken {
+    pub fn peek_error(&mut self, expected: &Token) -> ParserError {
+        ParserError::ExpectedToken {
             expected: expected.clone(),
             saw: self.peek_token.clone(),
-        });
+        }
     }
 
     pub fn next_token(&mut self) {
@@ -93,27 +99,25 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn expect_peek(&mut self, tok: &Token) -> bool {
-        if self.peek_token_is(&tok) {
+    pub fn expect_peek(&mut self, expected: &Token) -> ParserResult<()> {
+        if self.peek_token_is(&expected) {
             self.next_token();
-            return true;
+            return Ok(());
         }
-        self.peek_error(&tok);
-        false
+        Err(ParserError::ExpectedToken {
+            expected: expected.clone(),
+            saw: self.peek_token.clone(),
+        })
     }
 
-    pub fn expect_ident(&mut self) -> Option<Identifier> {
+    pub fn expect_ident(&mut self) -> ParserResult<Identifier> {
         match &self.peek_token {
             Token::Ident(name) => {
                 let ident = Identifier::new(name);
                 self.next_token();
-                Some(ident)
+                Ok(ident)
             }
-            _ => {
-                self.errors
-                    .push(ParserError::ExpectedIdent(self.peek_token.clone()));
-                None
-            }
+            _ => Err(ParserError::ExpectedIdent(self.peek_token.clone())),
         }
     }
 
@@ -121,15 +125,16 @@ impl<'a> Parser<'a> {
         let mut program = Program::default();
 
         while self.cur_token != Token::EOF {
-            if let Some(statement) = self.parse_statement() {
-                program.statements.push(statement);
+            match self.parse_statement() {
+                Ok(stmt) => program.statements.push(stmt),
+                Err(err) => self.errors.push(err),
             }
             self.next_token();
         }
         Some(program)
     }
 
-    pub fn parse_statement(&mut self) -> Option<Statement> {
+    pub fn parse_statement(&mut self) -> ParserResult<Statement> {
         match self.cur_token {
             Token::Let => self.parse_let_statement(),
             Token::Return => self.parse_return_statement(),
@@ -137,69 +142,58 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_let_statement(&mut self) -> Option<Statement> {
+    pub fn parse_let_statement(&mut self) -> ParserResult<Statement> {
         let token = self.cur_token.clone();
 
-        let name = match self.expect_ident() {
-            Some(name) => name,
-            None => return None,
-        };
-        if !self.expect_peek(&Token::Assign) {
-            return None;
-        }
+        let name = self.expect_ident()?;
+        self.expect_peek(&Token::Assign)?;
         while !self.current_token_is(&Token::Semicolon) {
             self.next_token();
         }
-        Some(Statement::Let {
+        Ok(Statement::Let {
             token,
             name,
             value: Expression::Nothing,
         })
     }
 
-    pub fn parse_return_statement(&mut self) -> Option<Statement> {
-        let stmt = Some(Statement::Return {
+    pub fn parse_return_statement(&mut self) -> ParserResult<Statement> {
+        let stmt = Statement::Return {
             token: self.cur_token.clone(),
             expr: Expression::Nothing,
-        });
+        };
         self.next_token();
         while !self.current_token_is(&Token::Semicolon) {
             self.next_token();
         }
-        stmt
+        Ok(stmt)
     }
 
-    pub fn parse_expression_statement(&mut self) -> Option<Statement> {
-        let expr = match self.parse_expression(Precedence::Lowest) {
-            Some(expr) => expr,
-            None => return None,
-        };
+    pub fn parse_expression_statement(&mut self) -> ParserResult<Statement> {
+        let expr = self.parse_expression(Precedence::Lowest)?;
         let stmt = Statement::Expression {
             token: self.cur_token.clone(),
             expr,
         };
 
         if self.peek_token_is(&Token::Semicolon) {
-            self.next_token()
+            self.next_token();
         }
-        Some(stmt)
+        Ok(stmt)
     }
 
-    pub fn parse_expression(&mut self, _precendence: Precedence) -> Option<Expression> {
+    pub fn parse_int_expression(value_str: &str) -> ParserResult<Expression> {
+        match value_str.parse::<i64>() {
+            Ok(value) => Ok(Expression::IntegerLiteral(value)),
+            Err(_) => Err(ParserError::IntegerParseFailure(value_str.to_owned())),
+        }
+    }
+
+    pub fn parse_expression(&mut self, _precendence: Precedence) -> ParserResult<Expression> {
         match &self.cur_token {
-            Token::Ident(name) => Some(Expression::Identifier(Identifier::new(name))),
-            Token::Int(value_str) => {
-                let value: i64 = match value_str.parse::<i64>() {
-                    Ok(value) => value,
-                    Err(_) => {
-                        self.errors
-                            .push(ParserError::IntegerParseFailure(value_str.to_owned()));
-                        return None;
-                    }
-                };
-                Some(Expression::IntegerLiteral(value))
-            }
-            _ => None,
+            Token::Ident(name) => Ok(Expression::Identifier(Identifier::new(name))),
+            Token::Int(value_str) => Parser::parse_int_expression(value_str),
+            _ => Err(ParserError::UnhandledExpression(self.cur_token.clone())),
         }
     }
 }

@@ -1,18 +1,44 @@
 use crate::token::Token;
 
-trait Node {
-    fn token_literal(&self) -> String;
-}
-trait Statement: Node {
-    fn statement_node(&self);
+#[derive(Debug, Clone, PartialEq)]
+pub struct Identifier(pub String);
+
+impl Identifier {
+    pub fn new(ident: &str) -> Self {
+        Identifier(ident.to_owned())
+    }
 }
 
-trait Expression: Node {
-    fn expression_node(&self);
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expression {
+    Identifier(Identifier),
+    Dummy,
 }
 
-struct Program {
-    statements: Vec<Box<Statement>>,
+#[derive(Debug, Clone, PartialEq)]
+pub enum Statement {
+    LetStatement {
+        token: Token,
+        name: Identifier,
+        value: Expression,
+    },
+    ReturnStatement {
+        token: Token,
+        expr: Expression,
+    },
+}
+
+impl Statement {
+    pub fn token_literal(&self) -> &str {
+        match self {
+            Statement::LetStatement { token, .. } => token.literal(),
+            Statement::ReturnStatement { token, .. } => token.literal(),
+        }
+    }
+}
+
+pub struct Program {
+    pub statements: Vec<Statement>,
 }
 
 impl Program {
@@ -21,50 +47,10 @@ impl Program {
     }
 }
 
-impl Node for Program {
-    fn token_literal(&self) -> String {
-        if !self.statements.is_empty() {
-            self.statements[0].token_literal()
-        } else {
-            String::new()
-        }
-    }
-}
-
-pub struct Identifier {
-    pub token: Token,
-    pub value: String,
-}
-
-impl Identifier {
-    pub fn new(token: Token) -> Self {
-        let value = token.literal().to_string();
-        Identifier { value, token }
-    }
-}
-
-impl Statement for Identifier {
-    fn statement_node(&self) {}
-}
-
-impl Node for Identifier {
-    fn token_literal(&self) -> String {
-        self.token.literal().to_string()
-    }
-}
-
-pub struct LetStatement {
-    token: Token,
-    name: Identifier,
-    value: Expression,
-}
-
-impl Statement for LetStatement {
-    fn statement_node(&self) {}
-}
-
-impl Node for LetStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal().to_string()
+impl Program {
+    pub fn token_literal(&self) -> Option<&str> {
+        self.statements
+            .first()
+            .and_then(|stmt| Some(stmt.token_literal()))
     }
 }

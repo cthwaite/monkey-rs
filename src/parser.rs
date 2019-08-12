@@ -262,7 +262,6 @@ impl<'a> Parser<'a> {
                 }
                 _ => return Ok(left),
             };
-            self.next_token();
         }
         Ok(left)
     }

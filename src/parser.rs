@@ -510,6 +510,34 @@ mod test {
     }
 
     #[test]
+    fn test_operator_precedence_parsing() {
+        let prefix_tests = vec![
+            ("-a + b", "((-a) + b)"),
+            ("!-a", "(!(-a))"),
+            ("a + b + c", "((a + b) + c)"),
+            ("a + b - c", "((a + b) - c)"),
+            ("a * b * c", "((a * b) * c)"),
+            ("a * b / c", "((a * b) / c)"),
+            ("a + b / c", "(a + (b / c))"),
+            ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
+            ("3 + 4; -5 * 5", "(3 + 4)\n((-5) * 5)"),
+            ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
+            ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            ),
+        ];
+
+        for (input, expected_output) in prefix_tests {
+            let (parser, program) = parser_for_input(input);
+            assert_no_parser_errors(&parser);
+
+            assert_eq!(format!("{}", program).trim(), expected_output);
+        }
+    }
+
+    #[test]
     fn test_parsing_infix_expressions() {
         let prefix_tests = vec![
             ("5 + 5;", 5, Token::Plus, 5),

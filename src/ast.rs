@@ -36,7 +36,9 @@ impl Display for Expression {
         match self {
             Expression::Identifier(name) => write!(f, "{}", name),
             Expression::IntegerLiteral(value) => write!(f, "{}", value),
-            Expression::Prefix { operator, right } => write!(f, "{}{}", operator.literal(), right),
+            Expression::Prefix { operator, right } => {
+                write!(f, "({}{})", operator.literal(), right)
+            }
             Expression::Infix {
                 left,
                 operator,
@@ -107,7 +109,7 @@ impl Program {
 impl Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for stmt in &self.statements {
-            writeln!(f, "{}", stmt)?;
+            write!(f, "{}\n", stmt)?;
         }
         Ok(())
     }
@@ -160,7 +162,7 @@ mod test {
             operator: Token::Minus,
             right: Box::new(Expression::IntegerLiteral(5)),
         };
-        assert_eq!(format!("{}", stmt), "-5");
+        assert_eq!(format!("{}", stmt), "(-5)");
     }
 
     #[test]

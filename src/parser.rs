@@ -266,10 +266,18 @@ impl<'a> Parser<'a> {
         println!("{:?} {:?}", self.cur_token, self.peek_token);
         self.expect_peek(&Token::LBrace)?;
         let consequence = self.parse_block_statement()?;
+        let alternative = match self.peek_token {
+            Token::Else => {
+                self.next_token();
+                self.expect_peek(&Token::LBrace)?;
+                Some(self.parse_block_statement()?)
+            }
+            _ => None,
+        };
         Ok(Expression::If {
             condition: Box::new(condition),
             consequence,
-            alternative: None,
+            alternative,
         })
     }
 

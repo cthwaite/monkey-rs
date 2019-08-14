@@ -560,6 +560,10 @@ mod test {
     #[test]
     fn test_operator_precedence_parsing() {
         let prefix_tests = vec![
+            ("true", "true"),
+            ("false", "false"),
+            ("3 > 5 == false", "((3 > 5) == false)"),
+            ("3 < 5 == true", "((3 < 5) == true)"),
             ("-a + b", "((-a) + b)"),
             ("!-a", "(!(-a))"),
             ("a + b + c", "((a + b) + c)"),

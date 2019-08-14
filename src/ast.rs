@@ -138,8 +138,8 @@ impl Display for Statement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockStatement {
-    token: Token,
-    statements: Vec<Statement>,
+    pub token: Token,
+    pub statements: Vec<Statement>,
 }
 
 impl BlockStatement {

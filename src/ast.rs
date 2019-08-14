@@ -19,6 +19,7 @@ impl Display for Identifier {
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(i64),
+    Boolean(bool),
     Prefix {
         operator: Token,
         right: Box<Expression>,
@@ -36,6 +37,7 @@ impl Display for Expression {
         match self {
             Expression::Identifier(name) => write!(f, "{}", name),
             Expression::IntegerLiteral(value) => write!(f, "{}", value),
+            Expression::Boolean(value) => write!(f, "{}", value),
             Expression::Prefix { operator, right } => {
                 write!(f, "({}{})", operator.literal(), right)
             }

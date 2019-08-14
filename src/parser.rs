@@ -237,6 +237,10 @@ impl<'a> Parser<'a> {
         })
     }
 
+    pub fn parse_boolean_expression(&mut self, is_true: bool) -> ParserResult<Expression> {
+        Ok(Expression::Boolean(is_true))
+    }
+
     pub fn parse_expression(&mut self, precedence: Precedence) -> ParserResult<Expression> {
         let mut left = match &self.cur_token {
             Token::Ident(name) => Expression::Identifier(Identifier::new(name)),
@@ -244,6 +248,8 @@ impl<'a> Parser<'a> {
             Token::Bang => self.parse_prefix_expression()?,
             Token::Minus => self.parse_prefix_expression()?,
             Token::Plus => self.parse_prefix_expression()?,
+            Token::True => self.parse_boolean_expression(true)?,
+            Token::False => self.parse_boolean_expression(false)?,
             _ => return Err(ParserError::UnhandledPrefix(self.cur_token.clone())),
         };
 
@@ -440,11 +446,11 @@ mod test {
         assert_no_parser_errors(&parser);
         assert_program_statements_len(&program, 1);
 
-        match &program.statements[0] {
-            Statement::Expression {
+        match program.statements.first() {
+            Some(Statement::Expression {
                 expr: Expression::Identifier(Identifier(name)),
                 ..
-            } => {
+            }) => {
                 assert_eq!(name, "foobar");
             }
             _ => assert!(
@@ -463,11 +469,11 @@ mod test {
         assert_no_parser_errors(&parser);
         assert_program_statements_len(&program, 1);
 
-        match &program.statements[0] {
-            Statement::Expression {
+        match program.statements.first() {
+            Some(Statement::Expression {
                 expr: Expression::IntegerLiteral(value),
                 ..
-            } => {
+            }) => {
                 assert_eq!(*value, 5);
             }
             _ => assert!(
@@ -475,6 +481,48 @@ mod test {
                 "Expected Statement::Expression(IntegerLiteral), got {:?}",
                 program.statements[0]
             ),
+        }
+    }
+
+    #[test]
+    fn test_boolean() {
+        let input = vec![
+            (
+                "true;",
+                Statement::Expression {
+                    token: Token::True,
+                    expr: Expression::Boolean(true),
+                },
+            ),
+            (
+                "false;",
+                Statement::Expression {
+                    token: Token::False,
+                    expr: Expression::Boolean(false),
+                },
+            ),
+            (
+                "let foobar = true;",
+                Statement::Let {
+                    token: Token::Let,
+                    name: Identifier::new("foobar"),
+                    value: Expression::Boolean(true),
+                },
+            ),
+            (
+                "let foobar = false;",
+                Statement::Let {
+                    token: Token::Let,
+                    name: Identifier::new("foobar"),
+                    value: Expression::Boolean(false),
+                },
+            ),
+        ];
+        for (input, expected) in input {
+            let (parser, program) = parser_for_input(input);
+            assert_no_parser_errors(&parser);
+            assert_program_statements_len(&program, 1);
+            assert_eq!(&program.statements[0], &expected);
         }
     }
 

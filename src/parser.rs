@@ -262,8 +262,6 @@ impl<'a> Parser<'a> {
         self.expect_peek(&Token::LParen)?;
 
         let condition = self.parse_expression(Precedence::Lowest)?;
-        println!("{:?}", condition);
-        println!("{:?} {:?}", self.cur_token, self.peek_token);
         self.expect_peek(&Token::LBrace)?;
         let consequence = self.parse_block_statement()?;
         let alternative = match self.peek_token {
@@ -653,6 +651,45 @@ mod test {
 
     #[test]
     fn test_if_expression() {
+        let input = "if (x < y) { x }";
+        let (parser, program) = parser_for_input(input);
+        assert_no_parser_errors(&parser);
+        assert_program_statements_len(&program, 1);
+
+        match program.statements.first().unwrap() {
+            Statement::Expression {
+                expr:
+                    Expression::If {
+                        condition,
+                        consequence,
+                        alternative,
+                    },
+                ..
+            } => {
+                assert_eq!(
+                    **condition,
+                    Expression::new_infix(Identifier::new("x"), Token::Lt, Identifier::new("y"))
+                );
+                assert_eq!(consequence.statements.len(), 1);
+                assert_statement_expression_eq(
+                    consequence.statements.first().unwrap(),
+                    &Expression::new_ident("x"),
+                );
+                assert!(alternative.is_none());
+            }
+            _ => {
+                assert!(
+                    false,
+                    "Expected Statement::Expression, got {:?}",
+                    program.statements[0]
+                );
+                unreachable!();
+            }
+        }
+    }
+
+    #[test]
+    fn test_if_else_xpression() {
         let input = "if (x < y) { x } else { y }";
         let (parser, program) = parser_for_input(input);
         assert_no_parser_errors(&parser);

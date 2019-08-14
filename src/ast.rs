@@ -39,8 +39,14 @@ impl From<bool> for Expression {
 }
 
 impl From<i64> for Expression {
-    fn from(b: i64) -> Self {
-        Expression::IntegerLiteral(b)
+    fn from(i: i64) -> Self {
+        Expression::IntegerLiteral(i)
+    }
+}
+
+impl From<Identifier> for Expression {
+    fn from(i: Identifier) -> Self {
+        Expression::Identifier(i)
     }
 }
 

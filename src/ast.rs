@@ -56,6 +56,9 @@ impl From<Identifier> for Expression {
 }
 
 impl Expression {
+    pub fn new_ident(ident: &str) -> Self {
+        Expression::Identifier(Identifier::new(ident))
+    }
     pub fn new_infix<E: Into<Expression>>(left: E, operator: Token, right: E) -> Self {
         Expression::Infix {
             left: Box::new(left.into()),

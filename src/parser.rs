@@ -1,4 +1,4 @@
-use crate::ast::{Expression, Identifier, Program, Statement};
+use crate::ast::{BlockStatement, Expression, Identifier, Program, Statement};
 use crate::lexer::Lexer;
 use std::fmt::{self, Display};
 
@@ -120,7 +120,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn expect_peek(&mut self, expected: &Token) -> ParserResult<()> {
-        if self.peek_token_is(&expected) {
+        if self.peek_token_is(expected) {
             self.next_token();
             return Ok(());
         }
@@ -247,6 +247,32 @@ impl<'a> Parser<'a> {
         self.expect_peek(&Token::RParen).and(expr)
     }
 
+    pub fn parse_block_statement(&mut self) -> ParserResult<BlockStatement> {
+        let mut block = BlockStatement::new(self.cur_token.clone());
+        self.next_token();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::EOF) {
+            let stmt = self.parse_statement()?;
+            block.statements.push(stmt);
+            self.next_token();
+        }
+        Ok(block)
+    }
+
+    pub fn parse_if_expression(&mut self) -> ParserResult<Expression> {
+        self.expect_peek(&Token::LParen)?;
+
+        let condition = self.parse_expression(Precedence::Lowest)?;
+        println!("{:?}", condition);
+        println!("{:?} {:?}", self.cur_token, self.peek_token);
+        self.expect_peek(&Token::LBrace)?;
+        let consequence = self.parse_block_statement()?;
+        Ok(Expression::If {
+            condition: Box::new(condition),
+            consequence,
+            alternative: None,
+        })
+    }
+
     pub fn parse_expression(&mut self, precedence: Precedence) -> ParserResult<Expression> {
         let mut left = match &self.cur_token {
             Token::Ident(name) => Expression::Identifier(Identifier::new(name)),
@@ -257,6 +283,7 @@ impl<'a> Parser<'a> {
             Token::True => self.parse_boolean_expression(true)?,
             Token::False => self.parse_boolean_expression(false)?,
             Token::LParen => self.parse_grouped_expression()?,
+            Token::If => self.parse_if_expression()?,
             _ => return Err(ParserError::UnhandledPrefix(self.cur_token.clone())),
         };
 
@@ -329,6 +356,21 @@ mod test {
             if count >= 1 { "s" } else { "" },
             program.statements.len()
         );
+    }
+
+    /// Assert that a Statement is a Statement::Expression wrapping an Expression
+    /// equivalent to the passed Expression.
+    fn assert_statement_expression_eq(stmt: &Statement, expected_expr: &Expression) {
+        match stmt {
+            Statement::Expression { expr, .. } => {
+                assert_eq!(expr, expected_expr);
+            }
+            _ => assert!(
+                false,
+                "Expected Statement::Expression {{ expr: {} }}, saw {}",
+                expected_expr, stmt
+            ),
+        }
     }
 
     #[test]
@@ -452,20 +494,10 @@ mod test {
         let (parser, program) = parser_for_input(input);
         assert_no_parser_errors(&parser);
         assert_program_statements_len(&program, 1);
-
-        match program.statements.first() {
-            Some(Statement::Expression {
-                expr: Expression::Identifier(Identifier(name)),
-                ..
-            }) => {
-                assert_eq!(name, "foobar");
-            }
-            _ => assert!(
-                false,
-                "Expected Statement::Expression(Identifier), got {:?}",
-                program.statements[0]
-            ),
-        }
+        assert_statement_expression_eq(
+            program.statements.first().unwrap(),
+            &Expression::new_ident("foobar"),
+        );
     }
 
     #[test]
@@ -476,19 +508,7 @@ mod test {
         assert_no_parser_errors(&parser);
         assert_program_statements_len(&program, 1);
 
-        match program.statements.first() {
-            Some(Statement::Expression {
-                expr: Expression::IntegerLiteral(value),
-                ..
-            }) => {
-                assert_eq!(*value, 5);
-            }
-            _ => assert!(
-                false,
-                "Expected Statement::Expression(IntegerLiteral), got {:?}",
-                program.statements[0]
-            ),
-        }
+        assert_statement_expression_eq(program.statements.first().unwrap(), &5.into());
     }
 
     #[test]
@@ -542,30 +562,14 @@ mod test {
             ("!false;", Token::Bang, Expression::Boolean(false)),
         ];
 
-        for (input, expected_op, expected_expr) in prefix_tests {
+        for (input, operator, right) in prefix_tests {
             let (parser, program) = parser_for_input(input);
             assert_no_parser_errors(&parser);
             assert_program_statements_len(&program, 1);
-
-            let expr = match &program.statements[0] {
-                Statement::Expression { expr, .. } => expr,
-                _ => {
-                    assert!(
-                        false,
-                        "Expected Statement::Expression, got {:?}",
-                        program.statements[0]
-                    );
-                    unreachable!();
-                }
-            };
-            match expr {
-                Expression::Prefix { operator, right } => {
-                    assert_eq!(operator, &expected_op);
-                    assert_eq!(**right, expected_expr);
-                }
-
-                _ => assert!(false, "Expected Expression::Prefix, got {:?}", expr),
-            }
+            assert_statement_expression_eq(
+                program.statements.first().unwrap(),
+                &Expression::new_prefix(operator, right),
+            );
         }
     }
 
@@ -635,18 +639,46 @@ mod test {
             let (parser, program) = parser_for_input(input);
             assert_no_parser_errors(&parser);
             assert_program_statements_len(&program, 1);
+            assert_statement_expression_eq(program.statements.first().unwrap(), &expected_expr);
+        }
+    }
 
-            match program.statements.first() {
-                Some(Statement::Expression { expr, .. }) => assert_eq!(expr, &expected_expr),
-                _ => {
-                    assert!(
-                        false,
-                        "Expected Statement::Expression, got {:?}",
-                        program.statements[0]
-                    );
-                    unreachable!();
-                }
-            };
+    #[test]
+    fn test_if_expression() {
+        let input = "if (x < y) { x }";
+        let (parser, program) = parser_for_input(input);
+        assert_no_parser_errors(&parser);
+        assert_program_statements_len(&program, 1);
+
+        match program.statements.first().unwrap() {
+            Statement::Expression {
+                expr:
+                    Expression::If {
+                        condition,
+                        consequence,
+                        alternative,
+                    },
+                ..
+            } => {
+                assert_eq!(
+                    **condition,
+                    Expression::new_infix(Identifier::new("x"), Token::Lt, Identifier::new("y"))
+                );
+                assert_eq!(consequence.statements.len(), 1);
+                assert_statement_expression_eq(
+                    consequence.statements.first().unwrap(),
+                    &Expression::new_ident("x"),
+                );
+                assert!(alternative.is_none())
+            }
+            _ => {
+                assert!(
+                    false,
+                    "Expected Statement::Expression, got {:?}",
+                    program.statements[0]
+                );
+                unreachable!();
+            }
         }
     }
 }

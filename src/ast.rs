@@ -29,6 +29,11 @@ pub enum Expression {
         operator: Token,
         right: Box<Expression>,
     },
+    If {
+        condition: Box<Expression>,
+        consequence: BlockStatement,
+        alternative: Option<BlockStatement>,
+    },
     Nothing,
 }
 
@@ -68,6 +73,17 @@ impl Display for Expression {
             Expression::Boolean(value) => write!(f, "{}", value),
             Expression::Prefix { operator, right } => {
                 write!(f, "({}{})", operator.literal(), right)
+            }
+            Expression::If {
+                condition,
+                consequence,
+                alternative,
+            } => {
+                write!(f, "if {} {}", condition, consequence)?;
+                if let Some(alternative) = alternative {
+                    write!(f, "else {}", alternative)?;
+                }
+                Ok(())
             }
             Expression::Infix {
                 left,
@@ -117,6 +133,30 @@ impl Display for Statement {
             }
             Statement::Expression { expr, .. } => write!(f, "{}", expr),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BlockStatement {
+    token: Token,
+    statements: Vec<Statement>,
+}
+
+impl BlockStatement {
+    pub fn new(token: Token) -> Self {
+        BlockStatement {
+            token,
+            statements: vec![],
+        }
+    }
+}
+
+impl Display for BlockStatement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for stmt in &self.statements {
+            write!(f, "{}", stmt)?;
+        }
+        Ok(())
     }
 }
 

@@ -15,6 +15,12 @@ impl Display for Identifier {
     }
 }
 
+impl From<&str> for Identifier {
+    fn from(s: &str) -> Self {
+        Identifier::new(s)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Identifier(Identifier),
@@ -58,6 +64,13 @@ impl From<Identifier> for Expression {
 impl Expression {
     pub fn new_ident(ident: &str) -> Self {
         Expression::Identifier(Identifier::new(ident))
+    }
+
+    pub fn new_prefix<E: Into<Expression>>(operator: Token, right: E) -> Self {
+        Expression::Prefix {
+            operator,
+            right: Box::new(right.into()),
+        }
     }
     pub fn new_infix<E: Into<Expression>>(left: E, operator: Token, right: E) -> Self {
         Expression::Infix {

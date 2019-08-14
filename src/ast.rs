@@ -32,6 +32,28 @@ pub enum Expression {
     Nothing,
 }
 
+impl From<bool> for Expression {
+    fn from(b: bool) -> Self {
+        Expression::Boolean(b)
+    }
+}
+
+impl From<i64> for Expression {
+    fn from(b: i64) -> Self {
+        Expression::IntegerLiteral(b)
+    }
+}
+
+impl Expression {
+    pub fn new_infix<E: Into<Expression>>(left: E, operator: Token, right: E) -> Self {
+        Expression::Infix {
+            left: Box::new(left.into()),
+            operator,
+            right: Box::new(right.into()),
+        }
+    }
+}
+
 impl Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

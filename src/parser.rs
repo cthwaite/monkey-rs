@@ -597,23 +597,34 @@ mod test {
     #[test]
     fn test_parsing_infix_expressions() {
         let prefix_tests = vec![
-            ("5 + 5;", 5, Token::Plus, 5),
-            ("5 - 5;", 5, Token::Minus, 5),
-            ("5 * 5;", 5, Token::Asterisk, 5),
-            ("5 / 5;", 5, Token::Slash, 5),
-            ("5 > 5;", 5, Token::Gt, 5),
-            ("5 < 5;", 5, Token::Lt, 5),
-            ("5 == 5;", 5, Token::Eq, 5),
-            ("5 != 5;", 5, Token::NotEq, 5),
+            ("5 + 5;", Expression::new_infix(5, Token::Plus, 5)),
+            ("5 - 5;", Expression::new_infix(5, Token::Minus, 5)),
+            ("5 * 5;", Expression::new_infix(5, Token::Asterisk, 5)),
+            ("5 / 5;", Expression::new_infix(5, Token::Slash, 5)),
+            ("5 > 5;", Expression::new_infix(5, Token::Gt, 5)),
+            ("5 < 5;", Expression::new_infix(5, Token::Lt, 5)),
+            ("5 == 5;", Expression::new_infix(5, Token::Eq, 5)),
+            ("5 != 5;", Expression::new_infix(5, Token::NotEq, 5)),
+            (
+                "true == true;",
+                Expression::new_infix(true, Token::Eq, true),
+            ),
+            (
+                "false == false;",
+                Expression::new_infix(false, Token::Eq, false),
+            ),
+            (
+                "true != false;",
+                Expression::new_infix(true, Token::NotEq, false),
+            ),
         ];
-
-        for (input, left_value, expected_op, right_value) in prefix_tests {
+        for (input, expected_expr) in prefix_tests {
             let (parser, program) = parser_for_input(input);
             assert_no_parser_errors(&parser);
             assert_program_statements_len(&program, 1);
 
-            let expr = match &program.statements[0] {
-                Statement::Expression { expr, .. } => expr,
+            match program.statements.first() {
+                Some(Statement::Expression { expr, .. }) => assert_eq!(expr, &expected_expr),
                 _ => {
                     assert!(
                         false,
@@ -623,20 +634,6 @@ mod test {
                     unreachable!();
                 }
             };
-
-            match expr {
-                Expression::Infix {
-                    left,
-                    operator,
-                    right,
-                } => {
-                    assert_eq!(**left, Expression::IntegerLiteral(left_value));
-                    assert_eq!(operator, &expected_op);
-                    assert_eq!(**right, Expression::IntegerLiteral(right_value));
-                }
-
-                _ => assert!(false, "Expected Expression::Prefix, got {:?}", expr),
-            }
         }
     }
 }

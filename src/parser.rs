@@ -653,7 +653,7 @@ mod test {
 
     #[test]
     fn test_if_expression() {
-        let input = "if (x < y) { x }";
+        let input = "if (x < y) { x } else { y }";
         let (parser, program) = parser_for_input(input);
         assert_no_parser_errors(&parser);
         assert_program_statements_len(&program, 1);
@@ -677,7 +677,15 @@ mod test {
                     consequence.statements.first().unwrap(),
                     &Expression::new_ident("x"),
                 );
-                assert!(alternative.is_none())
+                if let Some(alternative) = alternative {
+                    assert_eq!(alternative.statements.len(), 1);
+                    assert_statement_expression_eq(
+                        alternative.statements.first().unwrap(),
+                        &Expression::new_ident("y"),
+                    );
+                } else {
+                    assert!(false, "Expected Some(alternative), got None");
+                }
             }
             _ => {
                 assert!(

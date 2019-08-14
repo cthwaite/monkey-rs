@@ -237,8 +237,14 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_boolean_expression(&mut self, is_true: bool) -> ParserResult<Expression> {
+    pub fn parse_boolean_expression(&self, is_true: bool) -> ParserResult<Expression> {
         Ok(Expression::Boolean(is_true))
+    }
+
+    pub fn parse_grouped_expression(&mut self) -> ParserResult<Expression> {
+        self.next_token();
+        let expr = self.parse_expression(Precedence::Lowest);
+        self.expect_peek(&Token::RParen).and(expr)
     }
 
     pub fn parse_expression(&mut self, precedence: Precedence) -> ParserResult<Expression> {
@@ -250,6 +256,7 @@ impl<'a> Parser<'a> {
             Token::Plus => self.parse_prefix_expression()?,
             Token::True => self.parse_boolean_expression(true)?,
             Token::False => self.parse_boolean_expression(false)?,
+            Token::LParen => self.parse_grouped_expression()?,
             _ => return Err(ParserError::UnhandledPrefix(self.cur_token.clone())),
         };
 
@@ -584,6 +591,12 @@ mod test {
                 "3 + 4 * 5 == 3 * 1 + 4 * 5",
                 "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
             ),
+            ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+            ("(5 + 5) * 2", "((5 + 5) * 2)"),
+            ("2 / (5 + 5)", "(2 / (5 + 5))"),
+            ("(5 + 5) * 2 * (5 + 5)", "(((5 + 5) * 2) * (5 + 5))"),
+            ("-(5 + 5)", "(-(5 + 5))"),
+            ("!(true == true)", "(!(true == true))"),
         ];
 
         for (input, expected_output) in precedence_tests {

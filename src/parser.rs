@@ -528,9 +528,14 @@ mod test {
 
     #[test]
     fn test_parsing_prefix_expressions() {
-        let prefix_tests = vec![("!5;", Token::Bang, 5), ("-15;", Token::Minus, 15)];
+        let prefix_tests = vec![
+            ("!5;", Token::Bang, Expression::IntegerLiteral(5)),
+            ("-15;", Token::Minus, Expression::IntegerLiteral(15)),
+            ("!true;", Token::Bang, Expression::Boolean(true)),
+            ("!false;", Token::Bang, Expression::Boolean(false)),
+        ];
 
-        for (input, expected_op, integer_value) in prefix_tests {
+        for (input, expected_op, expected_expr) in prefix_tests {
             let (parser, program) = parser_for_input(input);
             assert_no_parser_errors(&parser);
             assert_program_statements_len(&program, 1);
@@ -549,7 +554,7 @@ mod test {
             match expr {
                 Expression::Prefix { operator, right } => {
                     assert_eq!(operator, &expected_op);
-                    assert_eq!(**right, Expression::IntegerLiteral(integer_value));
+                    assert_eq!(**right, expected_expr);
                 }
 
                 _ => assert!(false, "Expected Expression::Prefix, got {:?}", expr),
@@ -559,7 +564,7 @@ mod test {
 
     #[test]
     fn test_operator_precedence_parsing() {
-        let prefix_tests = vec![
+        let precedence_tests = vec![
             ("true", "true"),
             ("false", "false"),
             ("3 > 5 == false", "((3 > 5) == false)"),
@@ -581,7 +586,7 @@ mod test {
             ),
         ];
 
-        for (input, expected_output) in prefix_tests {
+        for (input, expected_output) in precedence_tests {
             let (parser, program) = parser_for_input(input);
             assert_no_parser_errors(&parser);
 
